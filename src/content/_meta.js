@@ -1,4 +1,4 @@
 export default {
 	index: "Introduction",
-	"get-started": "Get Started",
+	"optimize-frontend": "Optimizing Front-End Performance",
 };

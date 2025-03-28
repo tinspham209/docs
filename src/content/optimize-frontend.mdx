@@ -1,0 +1,945 @@
+---
+title: Optimizing Front-End Performance
+description: Optimizing Front-End Performance
+---
+
+# Optimizing Front-End Performance
+
+<img
+	style={{ objectFit: "contain", height: "400px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3Af0d810db-9e8e-4592-a2bf-364bb8a51ecc%3Aimage.png?table=block&id=1accdf63-9c57-804f-a158-f8abb2ac4c15&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=960&userId=&cache=v2"
+/>
+
+# CRP (Critical Rendering Path)
+
+What is Critical Rendering Path, Why we need to understand about CRP
+
+Understand the sequence of steps in the CRP will help you understand the nature, the way browser renders a web page. From understanding the nature, you will easily optimize Frontend performance more effectively.
+
+## Concept
+
+Alias: Browser Rendering Pipeline
+
+This is the sequence of steps that a browser takes to convert Resources (HTML, CSS, JS) into Pixels displayed on the screen.
+
+## Overview
+
+Here is the overview of the browser’s rendering process:
+
+<img src="https://tinspham209.notion.site/image/attachment%3Ae9e1eddb-dd41-4341-b999-42d8a8c01e6e%3Aimage.png?table=block&id=1accdf63-9c57-80ca-b1be-d5481b2e350d&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1420&userId=&cache=v2" />
+
+1. Convert HTML to **DOM**
+2. Convert CSS to **CSSDOM**
+3. Combine DOM and CSSDOM to create the **Render Tree**
+4. From the style information on the Render Tree, calculate the position and size of elements in the **Layout** step
+5. From the information on the Render Tree and Layout, draw the elements onto the screen in the **Paint** step
+
+## Details
+
+Before the browser renders a web page, the **DOM** and **CSSDOM** need to be constructed.
+
+### 1. DOM
+
+This is the process of converting HTML into DOM.
+
+**Output:** A tree of Nodes containing attribute information (class, id,…) and relationships with other Nodes on the DOM
+
+Example: From the HTML code below, the browsers builds the corresponding DOM
+
+```html
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta name="viewport" content="width=device-width,initial-scale=1" />
+		<link href="style.css" rel="stylesheet" />
+		<title>Critical Path</title>
+	</head>
+	<body>
+		<p>Hello <span>web performance</span> students!</p>
+		<div><img src="awesome-photo.jpg" /></div>
+	</body>
+</html>
+```
+
+<img
+	style={{ objectFit: "contain", height: "200px", margin: "0 auto" }}
+
+src="https://tinspham209.notion.site/image/attachment%3A8889ef47-1044-4fb2-abf2-f5ac5f40de74%3Aimage.png?table=block&id=1accdf63-9c57-8085-8681-da869360e269&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=860&userId=&cache=v2" />
+
+If you run it onto the Performance tab, the **parse HTML** task will correspond to this DOM construction step.
+
+<img
+	style={{ objectFit: "contain", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A28f5a2bf-8abc-417a-a43f-aff385c04874%3Aimage.png?table=block&id=1accdf63-9c57-80cf-b31e-fc24365a0585&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=630&userId=&cache=v2"
+/>
+
+### 2. CSSDOM
+
+This is the step of converting CSS styles into CSSDOM.
+
+**Output:** Style rules.
+
+**Note:**
+
+- This is a step independent of the DOM construction step, not yet the final style determination applied to the DOM
+- CSS here can be the browser’s default styles (e.g, h1, h2, b, strong, I tags, etc.) and self-defined CSS in `<style>` or CSS files.
+
+**Example:** From the CSS code, the browser will create the CSSDOM
+
+```css
+body {
+	font-size: 16px;
+}
+p {
+	font-weight: bold;
+}
+span {
+	color: red;
+}
+p span {
+	display: none;
+}
+img {
+	float: right;
+}
+```
+
+<img
+	style={{ objectFit: "contain", height: "200px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A65a4f787-dd46-433f-a119-e26bfd3a3176%3Aimage.png?table=block&id=1accdf63-9c57-807f-940c-c78b2558af17&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=630&userId=&cache=v2"
+/>
+
+If you run it on the Performance tab, the **Parse Stylesheet** will correspond to this CSSDOM construction step.
+
+<img
+	style={{ objectFit: "contain", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A9604ac34-5210-45f6-8a96-ddcf19868130%3Aimage.png?table=block&id=1accdf63-9c57-80f8-a26a-cac5a476ed9f&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=630&userId=&cache=v2"
+/>
+
+### 3. Render Tree
+
+This is the process of combining the DOM and CSSDOm to create the **Render Tree.**
+
+**Output:** A tree of rendered Nodes and the Style rules calculated for those Nodes.
+
+The tree does not contain default hidden Nodes (e.g., HTML, head, script, header, style, meta tags, etc.) and Nodes hidden by CSS (e.g., display: none).
+
+**Note**: Render Tree also includes all visible pseudo-elements (e.g., before, after) even though these elements may not be present in the DOM.
+
+In general, the Render Tree contains the Nodes that the user can see on the screen.
+
+**Example:** From the DOM and CSSDOM in steps 1 and 2 above, you will have the Render Tree
+
+<img
+	style={{ objectFit: "contain", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3Ae20a4ead-037b-4b6d-a544-8aae26fe60fa%3Aimage.png?table=block&id=1accdf63-9c57-801d-9250-e9d76a47ec14&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1420&userId=&cache=v2"
+/>
+
+If you run the Performance tab, the **Recalculate Style** will correspond to this **Render Tree** construction step.
+
+<img
+	style={{ objectFit: "contain", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A5ab8a5d2-7ee9-4277-84e9-51b37ceb1ebd%3Aimage.png?table=block&id=1accdf63-9c57-80b3-bb9b-d25c2e3ff145&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=630&userId=&cache=v2"
+/>
+
+### 4. Layout
+
+This is the process of calculating the size, position of elements on the browser. Layout is also know as **Reflow**
+
+**Output:** Box Model
+
+<img
+	style={{ objectFit: "contain", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A4bbd517a-cd30-40c8-b50c-ea8b088552d9%3Aimage.png?table=block&id=1accdf63-9c57-8016-b7f3-c171ce1733a6&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=390&userId=&cache=v2"
+/>
+
+**Example:** You declare styles of width, height, … in %, em, rem,… (e.g, width: 50%). The browser will have calculate the size by converting it to pixel and determining the position of the element on the screen.
+
+<img
+	style={{ objectFit: "contain", height: "200px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A099b0dfe-f966-48d6-b55f-02839a2d73b8%3Aimage.png?table=block&id=1accdf63-9c57-803c-bc8a-f0643618cf6e&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=630&userId=&cache=v2"
+/>
+
+If you run the Performance tab, the **Layout** task will correspond to this step.
+
+<img
+	style={{ objectFit: "contain", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A35dfc438-27a0-4e36-a1c0-1152c0ae9005%3Aimage.png?table=block&id=1accdf63-9c57-8092-bac6-d236f3d2fee8&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=360&userId=&cache=v2"
+/>
+
+### 5. Paint
+
+From the Style information on the Render Tree, the size, position information from Layout, the browser draws the pixels onto the screen, which is the interface that user sees.
+
+If you run the Performance tab, the **Paint** task will correspond to this step
+
+<img
+	style={{ objectFit: "contain", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A5e84de0c-26ed-4b92-8dcb-3dad6068cf6a%3Aimage.png?table=block&id=1accdf63-9c57-80b9-a16e-f6816154629c&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=350&userId=&cache=v2"
+/>
+
+### 6. Composite
+
+In reality, in addition to the 5 main steps, there will be an additional process called **Composite.** This process is responsible for determining the number of layers and combining all the layers to display them on the screen.
+
+The concept of Layer is very simple. A layer refers to separate elements that can be stacked on top of each other
+
+Here’s an example to help you visualize it. You’ve probable assigned `position: absolute` for two div tags, and use `z-index` to make one tag overlap the other. That’s exactly how you create two separate layers that can be stacked on top of each other.
+
+<img
+	style={{ objectFit: "contain", height: "400px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A06166191-8315-4caf-9843-de4c1ff951b6%3Aimage.png?table=block&id=1accdf63-9c57-80e7-b246-dcc616bfd8a3&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1150&userId=&cache=v2"
+/>
+
+If you run the Performance tab, the **Layerize** task will correspond to this step.
+
+<img
+	style={{ objectFit: "contain", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A5700406c-f222-4ca2-82bd-2a9399d5795d%3Aimage.png?table=block&id=1accdf63-9c57-8039-a189-c4451046bb29&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=190&userId=&cache=v2"
+/>
+
+Reference: https://web.dev/articles/critical-rendering-path
+
+# Optimize Frontend
+
+After you understand about the CRP, we can define which steps that we can optimize
+
+<img
+	style={{ objectFit: "contain", height: "300px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3Ac605dab4-0149-43f7-8a24-1a5327617eb4%3Aimage.png?table=block&id=1accdf63-9c57-800b-a062-c1eb95293f3e&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1420&userId=&cache=v2"
+/>
+
+So we have 3 approaches for optimizing Frontend
+
+1. Optimize Size
+2. Cache
+3. Optimize wait time
+
+## Optimize Size
+
+5 ways to optimize the size
+
+1. Minify
+2. Tree-shaking
+3. Code Split
+4. Compress
+5. Image optimize
+
+### Minify
+
+Removes whitespace, strips comments
+
+<img
+	style={{ objectFit: "contain", height: "300px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A81434bf3-de73-42c7-9286-c319b1f8a4cf%3Aimage.png?table=block&id=1accdf63-9c57-8013-91b6-e1bf67883a7a&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1150&userId=&cache=v2"
+/>
+
+<br />
+<img
+	style={{ objectFit: "contain", height: "400px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A85aaf672-9804-4f83-af5c-0b2dfff8ef52%3Aimage.png?table=block&id=1accdf63-9c57-8057-acdf-e987e6b2bcec&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1150&userId=&cache=v2"
+/>
+
+Tool:
+
+- [cssnano](https://github.com/cssnano/cssnano)
+- Vite config minify: https://vite.dev/config/build-options#build-minify
+
+### Tree-shaking
+
+Import absolute, import only what we use, not import all
+
+Remove unused functions.
+
+```jsx
+// utils.js
+export function calculateSum(a, b) {
+	return a + b;
+}
+
+export function calculateDifference(a, b) {
+	return a - b;
+}
+
+export function calculateProduct(a, b) {
+	return a * b;
+}
+
+// ❌ Bad way - Import all functions even we don't need
+import * as utils from "./utils";
+console.log(utils.calculateSum(5, 3)); // 8
+console.log(utils.calculateDifference(10, 4)); // 6
+
+// ✅ Good way - Import only what we use
+import { calculateSum, calculateDifference } from "./utils";
+console.log(calculateSum(5, 3)); // 8
+console.log(calculateDifference(10, 4)); // 6
+```
+
+```jsx
+import _ from "lodash";
+_.cloneDeep({}); ❌ Bad
+
+import { cloneDeep } from "lodash";
+cloneDeep({}); ✅ Good
+```
+
+### Size of library
+
+**Bundle Analyzer**
+
+- Webpack: https://www.npmjs.com/package/webpack-bundle-analyzer
+- Vite: https://www.npmjs.com/package/vite-bundle-analyzer
+
+<img
+	style={{ objectFit: "contain", height: "300px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A73df3bfc-9d4c-482e-8dc0-46cb92e8fee6%3Aimage.png?table=block&id=1accdf63-9c57-80ba-90f0-d89159fb0144&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1060&userId=&cache=v2"
+/>
+
+Optimize the library, and remove unused functions in the library.
+
+Example:
+
+In the analyzer above, moment.js it has a lot of js files for locale. But your project is only use english, so that we can remove the part of locale.
+
+with Webpack:
+
+```html
+// webpack new webpack.IgnorePlugin(/./locale$/, /moment$/);
+```
+
+```jsx
+// vite + rollup
+// vite.config.js
+import { defineConfig } from "vite";
+
+export default defineConfig({
+	build: {
+		rollupOptions: {
+			// Example of excluding an external module
+			external: ["some-external-library"],
+		},
+	},
+});
+```
+
+<img
+	style={{ objectFit: "contain", height: "250px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3Ae0a3fe3e-0919-4b59-b8ea-f2243f1a5b06%3Aimage.png?table=block&id=1accdf63-9c57-8056-a505-fa5d3601f673&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1420&userId=&cache=v2"
+/>
+
+**Check size of library**
+
+- https://bundlephobia.com/
+
+### Code-split
+
+**Split 1 chunk into multiple files chunk**
+
+Example with Vite
+
+```jsx
+export default defineConfig((_env: ConfigEnv) => {
+	return {
+		build: {
+			rollupOptions: {
+				output: {
+					manualChunks: (id: any) => {
+						const match = chunkPatterns.find((pattern) => id.includes(pattern));
+						return match && match;
+					},
+				},
+			},
+		},
+	};
+});
+
+const chunkPatterns: string[] = [
+	"@mui",
+	"classnames",
+	"lodash",
+	"@tanstack",
+	"react-icons/io5",
+	"react-icons",
+	"dayjs",
+	"i18next",
+	"@emotion",
+	"react-dom",
+	"react",
+];
+```
+
+<img
+	style={{ objectFit: "contain", height: "200px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A2b4b1a36-28f9-4b60-bcb3-9ddf17dcb726%3Aimage.png?table=block&id=1accdf63-9c57-80fc-80d9-c2841123f33c&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=670&userId=&cache=v2"
+/>
+
+<img
+	style={{ objectFit: "contain", height: "600px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A3e41871e-6dbf-4712-9087-b8a775d530f7%3Aimage.png?table=block&id=1accdf63-9c57-80ad-a904-c94c654d3f3d&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1250&userId=&cache=v2"
+/>
+
+**Lazy loading Router**
+
+<img
+	style={{ objectFit: "contain", height: "400px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3Ae91b5dfd-07f5-47cf-845e-2ea7fe0b8dda%3Aimage.png?table=block&id=1accdf63-9c57-803a-b098-fd4bda4bd65b&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1250&userId=&cache=v2"
+/>
+
+**Lazy loading Component**
+
+<img
+	style={{ objectFit: "contain", height: "200px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A75185ed6-e426-484c-8fe4-e513042baa5a%3Aimage.png?table=block&id=1accdf63-9c57-8035-9a48-c3827b60675f&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1250&userId=&cache=v2"
+/>
+
+### Compress
+
+gzip, br
+
+<img
+	style={{ objectFit: "contain", height: "200px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3Ac7e3097f-3e4a-432d-9530-ff82f920ef47%3Aimage.png?table=block&id=1accdf63-9c57-80a8-a22b-f722a4f871c1&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1250&userId=&cache=v2"
+/>
+
+<img
+	style={{ objectFit: "contain", height: "250px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3Ae5a6b690-9d55-45ac-b8f7-d8d08526b623%3Aimage.png?table=block&id=1accdf63-9c57-80ea-83a3-c96ca9c9036d&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1250&userId=&cache=v2"
+/>
+
+Combine 2 ways minify + compress:
+
+<img
+	style={{ objectFit: "contain", height: "300px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A63a8b6ee-0e4c-467f-ba93-3920cf32caba%3Aimage.png?table=block&id=1accdf63-9c57-808b-a9ae-c98b017bee0a&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1250&userId=&cache=v2"
+/>
+
+4 steps for Optimize Size:
+
+1. Minify: Removes whitespace, strips comments
+2. Tree-shaking:
+   1. Remove unused functions
+   2. Remove unused library
+3. Code Split
+4. Compress
+
+### Image
+
+- Reduce resolution of image before upload
+  1. Most of the user monitor is use FullHD (1920x1080px) so we may not need to upload the image with a 4k resolution
+- Compress image size before upload to server: https://www.npmjs.com/package/compressorjs
+
+```jsx
+import Compressor from "compressorjs";
+
+export const compressImage = (
+	file: File,
+	options: Pick<Compressor.Options, "quality" | "maxHeight" | "maxWidth"> = {
+		quality: 0.7,
+		maxWidth: 1920,
+		maxHeight: 1080,
+	}
+): Promise<File> =>
+	new Promise((resolve, reject) => {
+		const isImage = [
+			"image/jpg",
+			"image/jpeg",
+			"image/png",
+			"image/webp",
+		].includes(file?.type);
+
+		if (isImage) {
+			new Compressor(file, {
+				...options,
+				convertSize: 0,
+				convertTypes: ["image/jpg", "image/jpeg"],
+				success(result: File) {
+					resolve(result);
+				},
+				error(err: Error) {
+					reject(err);
+				},
+			});
+		} else {
+			resolve(file);
+		}
+	});
+```
+
+Tool: https://squoosh.app/
+
+1. Reduce size of image
+2. Convert to webp
+
+<img
+	style={{ objectFit: "contain", height: "300px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3Ac7e49aba-4ca7-4385-ac60-8c9c2e52c170%3Aimage.png?table=block&id=1accdf63-9c57-802a-a925-e4eee6ea9e11&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1250&userId=&cache=v2"
+/>
+
+Always set width and height in img to avoid CLS
+
+Sizes + srcset
+
+```jsx
+<img
+	src="placeholder-small.jpg"
+	srcset="
+		placeholder-small.jpg 480w,
+		placeholder-medium.jpg 768w,
+		placeholder-large.jpg 1200w"
+	sizes="
+		(max-width: 480px) 100vw,
+		(max-width: 768px) 100vw,
+		1200px"
+/>
+```
+
+Tool: https://www.responsivebreakpoints.com/
+
+## Cache
+
+### CDN
+
+Example use AWS CloudFront for speeds up distribution of your static and dynamic web content, such as HTML, CSS, JS
+
+https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/ConfiguringCaching.html
+
+Cloudflare
+
+### Service-worker
+
+Use [workbox-cli](https://developer.chrome.com/docs/workbox/modules/workbox-cli) to generate service-worker
+
+```jsx
+// workbox.config.cjs
+module.exports = {
+	globDirectory: "dist/admin",
+	globPatterns: [
+		"**/*.{ico,html,png,jpg,jpeg,webp,svg,json,txt,css,js,woff,ttf}",
+	],
+	globIgnores: ["index.html", "**/index.html"],
+	maximumFileSizeToCacheInBytes: 15 * 1000 * 1000, // 15MB
+	swDest: "dist/admin/service-worker.js",
+	skipWaiting: true,
+	clientsClaim: true,
+	cleanupOutdatedCaches: true,
+};
+```
+
+<br />
+
+<img
+	style={{ objectFit: "contain", height: "300px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A02359cdb-3124-47f7-a63b-795eece2b230%3Aimage.png?table=block&id=1accdf63-9c57-80b9-ba85-e6f00e39125d&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1150&userId=&cache=v2"
+/>
+
+<br />
+<img
+	style={{ objectFit: "contain", height: "350px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A6c5cb34a-89b4-4d97-b13e-5cd4a199b80c%3Aimage.png?table=block&id=1accdf63-9c57-800b-80af-c69b1234455b&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=630&userId=&cache=v2"
+/>
+
+### IndexDB
+
+Cache the column name of Table into IndexDB
+
+<img
+	style={{ objectFit: "contain", height: "300px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3Acbef5c9e-8e01-435f-a8d6-06d45d9a8f88%3Aimage.png?table=block&id=1accdf63-9c57-80ff-9228-c2bcd0f62bed&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1420&userId=&cache=v2"
+/>
+
+## Optimize Wait time
+
+We have 5 ways to optimize
+
+1. Async + Defer
+2. Lazy loading
+3. Optimize long tasks
+4. Web Worker
+5. Preload + Prefetch
+
+### Async + Defer
+
+<img
+	style={{ objectFit: "contain", height: "400px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3Af94ea44d-9732-40ce-8e5b-66087b47ce1b%3Aimage.png?table=block&id=1accdf63-9c57-80c9-99db-ec32efc6c43a&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=960&userId=&cache=v2"
+/>
+
+**Example of `<script async>`**
+
+Use for script of Google Analytics, monitor the user behavior when click on any element in website, or captures how people use the website, so we need to execute the script ASAP
+
+**Example of `<script defer>`**
+
+Show popup for ads after 5-10s after user view the website
+
+<img
+	style={{ objectFit: "contain", height: "300px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3Ae77a5c9f-0597-427d-a2e5-bc88c45525ac%3Aimage.png?table=block&id=1accdf63-9c57-8040-8be5-e9a2fa688c67&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=960&userId=&cache=v2"
+/>
+
+### Lazy Loading
+
+**Image**
+
+```jsx
+<img src="placeholder.jpg" loading="lazy" width="400" height="300" />
+```
+
+Note:
+
+- Avoid lazy-loading images that appear immediately in the viewport upon page load, as it can affect the LCP ([Largest Contentful Paint](https://web.dev/articles/optimize-lcp))
+- Keyword: Above the fold
+
+<img
+	style={{ objectFit: "contain", height: "300px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A8ee95fd9-fb9a-4ea2-abcf-c63362d24292%3Aimage.png?table=block&id=1accdf63-9c57-8089-adda-c395e53ebdcb&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1150&userId=&cache=v2"
+/>
+
+**IntersectionObserver**
+
+- Call API - on demand
+
+<img
+	style={{ objectFit: "contain", height: "250px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3Ab0381e43-7a6b-4527-abe2-cdc077f4de17%3Aimage.png?table=block&id=1accdf63-9c57-80a0-8a78-f5da2a41bc70&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1250&userId=&cache=v2"
+/>
+
+```jsx
+const intersectionObserver = new IntersectionObserver((entries, observer) => {
+	entries.forEach((entry) => {
+		if (entry.isIntersecting) {
+			callAPI(); // call API when element in viewport
+			observer.unobserve(entry.target); //unsubscribe
+		}
+	});
+});
+let targetElement = document.getElementById("target-element");
+intersectionObserver.observe(targetElement);
+```
+
+Example:
+
+- LazyCheckpoint - https://storybook.vizplatform.nettricity.cloud/react-ui/?path=/story/utils-lazycheckpoint--basic
+
+**Virtual Scroll + Infinite Scroll**
+
+Virtual Scroll
+
+- Only display the elements that are actually necessary on the screen, while the remaining elements are kept in memory. When the user scrolls, the new elements are calculated and dynamically displayed
+- Example: Get 100 records from API, but only show first 20 records in current viewport, when user scroll, calculate the position of user, and render which records in viewport
+- https://www.npmjs.com/package/react-window
+- https://www.npmjs.com/package/react-virtuoso
+
+Infinite Scroll
+
+- Fetch new records when user scroll into last record.
+- Example: Fetch first 20 records, when user scroll into record 20, fetch next record from 20-40
+- https://storybook.vizplatform.nettricity.cloud/react-ui/?path=/story/inputs-select--lazy-load
+
+### Optimize long tasks
+
+<img
+	style={{ objectFit: "contain", height: "250px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A6ec10d30-b30d-418f-b56a-f4d3c95f7df5%3Aimage.png?table=block&id=1accdf63-9c57-809a-b521-e982292d266d&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1420&userId=&cache=v2"
+/>
+
+Move some functions with low priority to Macrotask Queue
+
+https://youtu.be/eiC58R16hb8
+
+- Long Task
+
+```jsx
+function longTask() {
+	for (let i = 0; i < 1000000000; i++) {
+		// do something
+	}
+	console.log("Long task completed!");
+}
+```
+
+<br />
+<img
+	style={{ objectFit: "contain", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A02a759a1-4cf7-466c-b9f0-55bd1c4d4a45%3Aimage.png?table=block&id=1adcdf63-9c57-80a1-97dc-c4c3f97e4e16&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1150&userId=&cache=v2"
+/>
+
+- Break Long Task
+
+```jsx
+function breakLongTask() {
+	const totalIterations = 100000000;
+	const size = 10;
+	const chunkSize = Math.ceil(totalIterations / size);
+
+	for (let i = 0; i < size; i++) {
+		const start = i * chunkSize;
+		const end = Math.min((i + 1) * chunkSize, totalIterations);
+
+		setTimeout(() => {
+			for (let j = start; j < end; j++) {
+				// ... heavy computation
+			}
+			console.log(`${i + 1}/${size} completed!`);
+		}, 0);
+	}
+}
+```
+
+<br />
+
+<img src="https://tinspham209.notion.site/image/attachment%3Ae297dcf2-3cc5-40ce-8ec2-8edb7601e097%3Aimage.png?table=block&id=1adcdf63-9c57-8004-87f3-ec046679df75&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1060&userId=&cache=v2" />
+
+<br />
+
+- Example
+  <img src="https://tinspham209.notion.site/image/attachment%3Aab48dfab-ae31-4818-a564-6df604ee6d8d%3Aimage.png?table=block&id=1adcdf63-9c57-800a-9c1c-ef5afbddb6a4&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1060&userId=&cache=v2" />
+
+<br />
+```jsx
+function saveSettings(){
+  // Do critical work that is user-visible:
+  validateForm();
+  showSpinner();
+  updateUI();
+
+// Defer work that isn't user-visible to a separate task:
+setTimeout(() => {
+saveToServer();
+sendAnalytics();
+hideSpinner();
+}, 0);
+}
+
+````
+
+```jsx
+function yieldToMain(){
+  return new Promise((resolve) => {
+    setTimeout(() => {
+      resolve();
+    }, 0);
+  })
+}
+
+async function saveSettings(){
+	// Create an array of functions to run:
+  const tasks = [
+    validateForm,
+    showSpinner,
+    updateUI,
+    saveToServer,
+    sendAnalytics,
+    hideSpinner
+  ];
+  while(tasks.length > 0){
+    const task = tasks.shift();
+    task();
+    await yieldToMain();
+  }
+}
+````
+
+<img src="https://tinspham209.notion.site/image/attachment%3A4086652d-306f-4c20-8b9d-95f4ee6c667f%3Aimage.png?table=block&id=1adcdf63-9c57-8056-8419-cf2ed84adae1&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=960&userId=&cache=v2" />
+
+### Preload + Prefetch
+
+**Preload**
+
+Priority: High
+
+Preload the necessary resources for the current page, helping to reduce the loading time of critical resources.
+
+Example: Preload the background-image in CSS file before browser parse stylesheet
+
+```jsx
+//style.css
+.banner {
+	background-image: url('your-image.jpg')
+}
+
+//index.html
+<link ref="preload" href="your-image.jpg" as="image"></link>
+```
+
+**Prefetch**
+
+Priority: Low
+
+Predownload to cache the resources that can be used in future
+
+Example: emoji in chat
+
+**Fetchpriority**
+
+```html
+<!-- We don't want a high priority for this above-the-fold image -->
+<img src="/images/in_viewport_but_not_important.svg" fetchpriority="low" />
+
+<!-- We want to initiate an early fetch for a resource, but also deprioritize it -->
+<link rel="preload" href="/js/script.js" as="script" fetchpriority="low"></link>
+
+<script>
+  fetch("https://example.com/", {
+    priority: "low"
+  }).then(() => {
+    // Trigger a low priority fetch
+  });
+  </script>
+```
+
+<img
+	style={{ objectFit: "contain", height: "300px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A7b828b34-8b84-484d-a147-bf8af4a8d667%3Aimage.png?table=block&id=1adcdf63-9c57-8026-add1-dffd8498202b&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1150&userId=&cache=v2"
+/>
+
+### HTML
+
+Reduce the number of DOM elements, limit excessive DOM nesting
+
+- Reduce size of HTML
+- Easy to manage code
+
+### CSS
+
+Inline critical CSS
+
+- Browser doesn’t need to download link css
+
+Avoid CSS @import declarations
+
+- Causes render blocking, due to waiting for to download file to complete
+- If you import many, files will be downloaded sequentially one by one.
+
+Font: `font-display: swap` & `font-display: block`
+
+### JS
+
+**Event delegation**
+
+```js
+// HTML Structure
+<ul id="myList">
+	<li>Item 1</li>
+	<li>Item 2</li>
+	<li>Item 3</li>
+</ul>;
+
+// ❌ Bad way
+let listItems = document.querySelectorAll("#myList li");
+listItems.forEach((item) => {
+	item.addEventListener("click", function () {
+		console.log("Clicked on: ", this.textContent);
+	});
+});
+
+// ✅ Good way
+let list = document.getElementById("myList");
+list.addEventListener("click", function (event) {
+	if (event.target.tagName === "LI") {
+		console.log("Clicked on: ", event.target.textContent);
+	}
+});
+```
+
+**DocumentFragment**
+
+```jsx
+// ❌ Bad way
+// Insert elements to DOM one by one, browser will reflow and re-render after each insertion
+const container = document.getElementById("container");
+for (let i = 0; i < 1000; i++) {
+	const item = document.createElement("div");
+	item.textContent = `Item ${i}`;
+	container.appendChild(item);
+}
+
+// ✅ Good way
+// Insert the fragment when ready, browser will only reflow and re-render one.
+const fragment = document.createDocumentFragment();
+
+for (let i = 0; i < 1000; i++) {
+	const item = document.createElement("div");
+	item.textContent = `Item ${i}`;
+	fragment.appendChild(item);
+}
+const container = document.getElementById("container");
+container.appendChil(fragment);
+```
+
+**Debounce + Throttle**
+
+- Debounce: https://developer.mozilla.org/en-US/docs/Glossary/Debounce
+- Throttle: https://developer.mozilla.org/en-US/docs/Glossary/Throttle
+- Rate Limit: https://developer.mozilla.org/en-US/docs/Glossary/Rate_limit
+
+**Memorization**
+
+**Layout Thrashing**
+
+- https://web.dev/articles/avoid-large-complex-layouts-and-layout-thrashing
+
+**Web Worker**
+
+- https://web.dev/learn/performance/web-worker-overview
+
+<img src="https://tinspham209.notion.site/image/attachment%3A664d926a-d1ce-43a6-962c-2c3ed7024dd7%3Aimage.png?table=block&id=1adcdf63-9c57-8004-b704-dbe690e594bd&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=670&userId=&cache=v2" />
+
+# Tools used to optimize
+
+**Check Performance**
+
+- Performance tab
+
+**Check Web Vitals + recommend**
+
+- Lighthouse tab
+
+**Check % code used in 1 file**
+
+- Coverage tab
+
+**Block request to check if it’s a critical resource**
+
+- Network request blocking tab
+
+<img src="https://tinspham209.notion.site/image/attachment%3Af0d44316-9e6e-4fe7-9bdb-d46af41aa4f6%3Aimage.png?table=block&id=1adcdf63-9c57-804e-ba19-d0a0af82c8dd&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=630&userId=&cache=v2" />
+
+**Check the impact on element rendering when handling events**
+
+- Rendering tab
+
+<img src="https://tinspham209.notion.site/image/attachment%3A5d44ec50-2307-46e3-b5ad-12c90c8fc016%3Aimage.png?table=block&id=1adcdf63-9c57-80ba-bb1b-cb5aa7609c15&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=630&userId=&cache=v2" />
+
+**Check layer**
+
+- Layer tab
+
+**Check CSS performance**
+
+- https://blogs.windows.com/msedgedev/2023/01/17/the-truth-about-css-selector-performance/
+
+<img
+	style={{ objectFit: "contain", height: "100px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A5d0c0f18-34ce-4d05-95be-4a402cd0bfa5%3Aimage.png?table=block&id=1adcdf63-9c57-80eb-bcdc-e2e6a1bf955e&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1060&userId=&cache=v2"
+/>
+
+<img
+	style={{ objectFit: "contain", height: "350px", margin: "0 auto" }}
+	src="https://tinspham209.notion.site/image/attachment%3A8c2275ce-43b4-4941-a980-6001c11e5602%3Aimage.png?table=block&id=1adcdf63-9c57-80cc-8185-d44a1ca4be5c&spaceId=efa3d0d6-7ee4-4e4f-87bc-19b54cf68c1e&width=1060&userId=&cache=v2"
+/>
+
+**Check npm**
+
+- https://bundlephobia.com/
+
+**Can I use**
+
+- https://caniuse.com/
+
+## Reference
+
+- https://web.dev/learn/performance/welcome
+- https://web.dev/learn/performance/understanding-the-critical-path
+- https://web.dev/learn/pwa

@@ -54,7 +54,7 @@ export default async function RootLayout({
 					footer={footer}
 					pageMap={pageMap}
 					editLink="Edit this page on GitHub"
-					docsRepositoryBase="https://github.com/tinspham209/docs"
+					docsRepositoryBase="https://github.com/tinspham209/docs/blob/main"
 					sidebar={{
 						defaultOpen: true,
 						toggleButton: true,
