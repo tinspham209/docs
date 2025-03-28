@@ -5,8 +5,17 @@ import { SITE } from "@/config";
 const Footer = () => {
 	return (
 		<NextraFooter>
-			<span>Maintained by Tins Pham</span>
-			<div>
+			<span>
+				Maintained by{" "}
+				<a
+					target="_blank"
+					rel="noopener noreferrer"
+					href="https://tinspham.dev"
+				>
+					Tins Pham
+				</a>
+			</span>
+			<div style={{ marginLeft: "8px" }}>
 				<a target="_blank" href={SITE.github} rel="noopener noreferrer">
 					GitHub
 				</a>
