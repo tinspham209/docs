@@ -1,0 +1,418 @@
+---
+title: Git Worktree Guide for Monorepo
+description: Best Practices for Using Git Worktree in the Monorepo
+---
+
+# Git Worktree Guide for Monorepo
+
+## Overview
+
+Git worktree allows you to have multiple working directories attached to the same repository. This is particularly useful for the Magenta Design System monorepo where you might need to:
+
+- Work on multiple features simultaneously
+- Compare implementations across different branches
+- Test changes against stable versions
+- Review pull requests while continuing development
+- Run different development servers for different packages
+
+## Why Use Git Worktree in Monorepos
+
+### Traditional Problems with Branch Switching
+
+```bash
+# Traditional workflow problems:
+git checkout feature-branch-1    # Working on DatePicker component
+# ... make changes, start dev server ...
+git stash                        # Need to switch to review PR
+git checkout main
+git checkout pr-branch          # Review someone's Button component
+# ... now need to reinstall dependencies, restart servers ...
+git checkout feature-branch-1   # Back to DatePicker work
+git stash pop                   # Restore changes
+# ... reinstall dependencies again, restart dev server ...
+```
+
+### Git Worktree Solution
+
+```bash
+# With worktree - much cleaner:
+git worktree add ../feature1 feature-branch-1    # DatePicker work
+git worktree add ../pr-review pr-branch         # Review work
+git worktree add ../hotfix hotfix-branch        # Urgent fix
+
+# Each directory maintains its own:
+# - Node modules
+# - Build artifacts
+# - Development servers
+# - Git state
+```
+
+## Basic Git Worktree Commands
+
+### Creating Worktrees
+
+```bash
+# Create a new worktree for existing branch
+git worktree add <path> <branch-name>
+git worktree add ../feature feat/ASD-1234-datepicker-v2
+
+# Create worktree with new branch
+git worktree add -b <new-branch> <path> <start-point>
+git worktree add -b feat/ASD-5678-button-redesign ../button develop
+
+```
+
+### Managing Worktrees
+
+```bash
+# List all worktrees
+git worktree list
+
+# Remove a worktree (after deleting the directory)
+git worktree remove <path>
+
+# Prune deleted worktrees
+git worktree prune
+
+# Move a worktree to a different location
+git worktree move <worktree> <new-path>
+```
+
+## Best Practices for Monorepo
+
+### 1. Directory Structure Convention
+
+Organize your worktrees in a predictable structure:
+
+```bash
+# Recommended structure:
+~/Development/
+├── develop/                 # Main worktree (develop branch)
+├── feature-1/       # Feature branch worktree
+├── feature-2/       # Another feature branch
+├── pr-review/       # For reviewing PRs
+├── hotfix/          # For urgent fixes
+└── experimental/    # For experimental work
+```
+
+### 2. Naming Conventions
+
+**Current Repository Branch Naming:**
+
+The repository follows these branch naming patterns:
+
+- `feat/ASD-XXXX-description` - New features
+- `fix/ASD-XXXX-description` - Bug fixes
+- `chore/ASD-XXXX-description` - Maintenance tasks
+- `ci/description` - CI/CD related changes
+- `release/version` - Release branches
+
+Use descriptive names that reflect the purpose:
+
+```bash
+# Good naming examples (following current ASD ticket patterns):
+git worktree add ../datepicker-v2 feat/ASD-1234-datepicker-v2
+git worktree add ../pr-5678 fix/ASD-5678-button-accessibility
+git worktree add ../hotfix-critical fix/ASD-5999-critical-css-bug
+git worktree add ../docs-update chore/ASD-6000-component-guidelines
+```
+
+### 3. Package Management Best Practices
+
+Each worktree should maintain its own dependencies:
+
+```bash
+# After creating a new worktree:
+cd ../feature-1
+pnpm install                 # Install dependencies
+pnpm build:packages         # Build packages if needed
+```
+
+### 4. Development Server Management
+
+Run different dev servers for different purposes:
+
+```bash
+# In main worktree (port 6006 - Storybook):
+cd ~/Development/develop
+pnpm dev:docs
+
+# In feature worktree (port 3000 - Next.js docs):
+cd ~/Development/feature-1
+pnpm dev:docs-v2
+
+# In review worktree (specific package):
+cd ~/Development/pr-review
+pnpm dev:react
+```
+
+## Recommended Workflow
+
+### 1. Creating Feature Worktrees
+
+```bash
+# For new feature development
+git worktree add -b feat/ASD-1234-new-component ../new-component develop
+
+# Switch to the new worktree
+cd ../new-component
+
+# Install dependencies
+pnpm install
+
+# Start development
+pnpm dev:docs
+```
+
+### 3. PR Review Workflow
+
+```bash
+# Create worktree for PR review (GitHub PR #123)
+git fetch origin pull/123/head:review/pr-123
+git worktree add ../pr-123 review/pr-123
+
+# Switch to review worktree
+cd ../pr-123
+pnpm install
+pnpm build:packages
+pnpm dev:docs
+
+# Test the changes
+pnpm test
+pnpm test:coverage
+```
+
+### 4. Hotfix Workflow
+
+```bash
+# Create hotfix worktree from develop (main branch)
+git worktree add -b fix/ASD-9999-critical-fix ../hotfix develop
+
+cd ../hotfix
+pnpm install
+# Make urgent fixes
+# Test thoroughly
+# Push and create PR
+```
+
+## Common Scenarios
+
+### Scenario 1: Working on Multiple Components
+
+```bash
+# Main development - React components
+git worktree add -b feat/ASD-1234-button-v2 ../button develop
+
+# Parallel work - CSS system
+git worktree add -b feat/ASD-1235-css-tokens ../css develop
+
+# Documentation updates
+git worktree add -b chore/ASD-1236-component-guide ../docs develop
+```
+
+### Scenario 2: Testing Cross-Package Dependencies
+
+```bash
+# Work on react-dates package
+cd ~/Development/dates-feature
+# Make changes to DatePicker
+
+# Test in main docs without switching
+cd ~/Development/
+pnpm dev:docs  # Will use built packages from dates-feature
+```
+
+### Scenario 3: Comparing Implementations
+
+```bash
+# Keep current implementation running
+cd ~/Development/
+pnpm dev:docs  # Running on localhost:6006
+
+# Test new implementation
+cd ~/Development/feature
+pnpm dev:docs-v2  # Running on localhost:3000
+
+# Compare side by side in browser
+```
+
+## Troubleshooting
+
+### Problem: Shared Lock Files
+
+**Issue**: `pnpm-lock.yaml` conflicts between worktrees
+
+**Solution**:
+
+```bash
+# Use separate lock files per worktree
+cd ../feature
+rm pnpm-lock.yaml
+pnpm install  # Creates new lock file
+
+# Or use frozen lockfile
+pnpm install --frozen-lockfile
+```
+
+### Problem: Node Modules Conflicts
+
+**Issue**: Different package versions between worktrees
+
+**Solution**:
+
+```bash
+# Clean and reinstall in each worktree
+cd ../feature
+rm -rf node_modules
+pnpm install
+pnpm build:packages
+```
+
+### Problem: Port Conflicts
+
+**Issue**: Multiple dev servers trying to use same port
+
+**Solution**:
+
+```bash
+# Use different ports for different worktrees
+PORT=3001 pnpm dev:docs-v2
+PORT=6007 pnpm dev:docs
+
+# Or modify package.json scripts temporarily
+```
+
+### Problem: Git State Confusion
+
+**Issue**: Changes in one worktree affecting others
+
+**Solution**:
+
+```bash
+# Check worktree status
+git worktree list
+
+# Ensure each worktree is on correct branch
+git branch -vv
+
+# Use git status to check clean state
+git status
+```
+
+## Advanced Tips
+
+### 1. Automate Worktree Creation
+
+Create a helper script:
+
+```bash
+#!/bin/bash
+# create-worktree.sh
+
+BRANCH_NAME=$1
+WORKTREE_NAME=${2:-$BRANCH_NAME}
+BASE_BRANCH=${3:-develop}
+
+git worktree add -b $BRANCH_NAME ../$WORKTREE_NAME $BASE_BRANCH
+cd ../$WORKTREE_NAME
+pnpm install
+echo "Worktree created: ../$WORKTREE_NAME"
+echo "Branch: $BRANCH_NAME"
+echo "Run: cd ../$WORKTREE_NAME && pnpm dev:docs"
+```
+
+Usage:
+
+```bash
+./create-worktree.sh feat/ASD-1234-new-component new-component
+```
+
+### 2. Shared Build Cache
+
+For faster builds across worktrees:
+
+```bash
+# In each worktree, use shared Turbo cache
+export TURBO_CACHE_DIR="$HOME/.turbo-cache"
+
+# Or modify turbo.json to use absolute cache path
+```
+
+### 3. IDE Configuration
+
+For VS Code with multiple worktrees:
+
+```bash
+# Open multiple VS Code instances
+code ~/Development/magenta          # Main development
+code ~/Development/feature  # Feature work
+code ~/Development/review   # PR review
+```
+
+### 4. Cleanup Script
+
+Regular maintenance:
+
+```bash
+#!/bin/bash
+# cleanup-worktrees.sh
+
+echo "Current worktrees:"
+git worktree list
+
+echo "Pruning deleted worktrees:"
+git worktree prune
+
+echo "Cleaning up merged branches:"
+# Add logic to remove worktrees for merged branches
+```
+
+### 5. Package Linking for Development
+
+When working on interdependent packages:
+
+```bash
+# In the package you're developing
+cd packages/react
+pnpm build
+
+# Link to another worktree for testing
+cd ../../../test-worktree
+pnpm link ../dev-worktree/packages/react
+```
+
+## Performance Considerations
+
+### Disk Space Management
+
+- Each worktree duplicates working files but shares Git objects
+- Monitor disk usage: `du -sh ../*`
+- Remove unused worktrees regularly
+- Use `git worktree prune` to clean up
+
+### Memory Usage
+
+- Multiple dev servers consume significant memory
+- Consider running only necessary servers
+- Use `pnpm dev:packages` vs `pnpm dev` strategically
+
+### Network Efficiency
+
+- Share `node_modules` when possible using pnpm's store
+- Use `pnpm install --offline` when packages haven't changed
+
+## Conclusion
+
+Git worktree is a powerful tool for managing the complexity of the Magenta monorepo. By following these best practices, you can:
+
+- Work on multiple features simultaneously without context switching
+- Review PRs without disrupting your development environment
+- Test changes across different package versions
+- Maintain cleaner Git history with focused commits
+
+Remember to regularly clean up unused worktrees and maintain good naming conventions to keep your development environment organized and efficient.
+
+## References
+
+- [Git Worktree Documentation](https://git-scm.com/docs/git-worktree)
+- [PNPM Documentation](https://pnpm.io/)
