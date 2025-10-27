@@ -11,5 +11,5 @@ export const SITE: Site = {
 	sst: "https://sst.dev",
 	url: "https://docs.tinspham.dev",
 	github: "https://github.com/tinspham209",
-	description: "Docs - Tins Pham",
+	description: "My random documentation, blog, config, and more - Tins Pham",
 };
