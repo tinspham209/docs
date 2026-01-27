@@ -1,0 +1,89 @@
+---
+title: Setup ArmbianOS in FPT Playbox S400
+description: Guide to setting up ArmbianOS on the FPT Playbox S400 device
+---
+
+# Setup ArmbianOS in FPT Playbox S400
+
+## Overview
+
+[ArmbianOS](https://www.armbian.com/) is a lightweight Linux distribution optimized for ARM-based devices, offering better performance and flexibility compared to the default firmware.
+This guide provides step-by-step instructions to install and configure ArmbianOS on the FPT Playbox S400 device.
+
+## Prerequisites
+
+- FPT Playbox S400 device
+  - Specs: Amlogic S905X SoC, 2GB RAM, 16GB eMMC storage
+- USB drive (at least 4GB recommended)
+- Computer with USB port
+- Balena Etcher or similar tool for flashing OS images
+
+## Steps to Install ArmbianOS
+
+- File the correct image for the FPT Playbox S400 from the [Armbian website](https://github.com/ophub/amlogic-s9xxx-armbian/releases).
+  - Access the version with prefix `Armbian_noble_arm64_server_xxx`.
+  - For FPT Playbox S400, download the `Armbian_26.02.0_amlogic_s905x-b860h_trixie_6.1.160_server_2026.01.15.img.gz` image.
+
+| Part         | Value         | Description                                                                                                        |
+| ------------ | ------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Project      | `Armbian`     | The name of the operating system.                                                                                  |
+| Version      | `26.02.0`     | The Armbian build version (released Feb 2026).                                                                     |
+| Chipset      | `amlogic`     | The manufacturer of the processor inside your box.                                                                 |
+| Target Board | `s905x-b860h` | The most important part. s905x is your CPU. b860h refers to the board configuration (common for FPT Playbox S400). |
+| OS Base      | `trixie`      | The version of Debian this is based on (Debian 13 "Trixie").`                                                      |
+| Kernel       | `6.1.160`     | The "brain" of the OS. 6.1 is an LTS (Long Term Support) kernel, which is stable for S905X.                        |
+| Type         | `server`      | No desktop interface. It’s lightweight and controlled via command line.                                            |
+| Build Date   | `2026.01.15`  | The date this image was built (15th Jan 2026).                                                                     |
+
+You might wonder why it says b860h instead of s400. In the world of Armbian, developers create images for the "parent" hardware. The ZTE B860H and the FPT S400 are essentially cousins—they use the same Amlogic S905X architecture. Using this image saves you from having to build the drivers from scratch.
+
+- Use Balena Etcher to flash the downloaded image onto the USB drive.
+  - Download and install [Balena Etcher](https://etcher.balena.io/#download-etcher).
+  - Follow the instructions to select the image and target USB drive, then start the flashing process.
+
+- Insert the flashed USB drive into the FPT Playbox S400 device.
+- Power on the device and access the boot menu by pressing home button in your remote with multiple time during startup.
+  - It will flash the logo FPT several time, keep pressing home button until you see the boot menu.
+
+- Wait for the ArmbianOS to boot up from the USB drive. (usually takes about 3-5 minutes)
+
+- Due to the FPT Playbox S400's limited usb port (only 1 port), you might need a USB hub to connect both a keyboard and the USB drive simultaneously.
+  - If you don't have a USB hub, lets follow these steps for access via SSH:
+    - Connect Internet: Plug an Ethernet cable (RJ45) into the S400.
+    - Find the IP: Log into your Wi-Fi router’s admin page to find the LAN IP address assigned to the armbian device.
+    - SSH Access: Use an SSH client (like PuTTY for Windows or Terminal for macOS/Linux) to connect:
+      ```bash
+      ssh root@<IP_ADDRESS>
+      ```
+      Replace `<IP_ADDRESS>` with the actual IP you found in the previous step. (e.g: 192.168.1.45).
+    - Default Password: The password is usually 1234.
+    - From now, you can manage the device remotely via SSH.
+
+- Follow the on-screen instructions to complete the initial setup of ArmbianOS.
+  - Change the default password when prompted.
+  - Default command shell is `zsh`.
+  - Create new user account that under sudo group for daily use.
+
+- After you have completed the setup, install the armbian into the internal eMMC storage by running the following command:
+
+```bash
+armbian-install
+```
+
+- It will force you to select the correct model device
+  - Select the ID that have model name: SOC: `S950X`, MODEL: `B860H`
+- Follow the prompts to complete the installation to eMMC.
+- Once the installation is complete, reboot the device and remove the USB drive.
+- After you reboot, it is recommended to update the system packages:
+
+```bash
+sudo apt update && sudo apt upgrade -y
+```
+
+## Conclusion
+
+You have successfully installed ArmbianOS on your FPT Playbox S400 device! You can now explore the features and capabilities of this lightweight Linux distribution. For further customization and software installation, refer to the [Armbian documentation](https://docs.armbian.com/).
+
+## Additional Resources
+
+- [Armbian Official Website](https://www.armbian.com/)
