@@ -1,0 +1,277 @@
+---
+title: Setup TV Box into the Home Server Mini (ArmbianOS)
+description: Guide to setting up a TV Box as a Home Server Mini
+---
+
+# Setup TV Box into the Home Server Mini (ArmbianOS)
+
+## Overview
+
+[ArmbianOS](https://www.armbian.com/) is a lightweight Linux distribution optimized for ARM-based devices, offering better performance and flexibility compared to the default firmware.
+
+This guide provides step-by-step instructions to install and configure ArmbianOS on a TV Box device to function as a Home Server Mini.
+
+## Prerequisites
+
+- TV Box device (e.g., FPT Playbox S400)
+- Installed the ArmbianOS following the [Setup ArmbianOS in FPT Playbox S400](./setup-armbian-in-fpt-playbox-s400) guide
+
+## Initial Configuration
+
+- Power on the TV Box and access it via SSH or terminal.
+- Login with the root user.
+- Update the package lists and upgrade existing packages:
+  ```bash
+  sudo apt update && sudo apt upgrade -y
+  ```
+
+## Install Docker via armbian-software
+
+- Use the built-in armbian-software tool to install Docker:
+  ```bash
+  armbian-software
+  ```
+- Find the correct ID Docker option in the menu and follow the prompts to install it.
+- After installation, verify Docker is running:
+  ```bash
+  sudo systemctl status docker
+  ```
+
+## Install Arcane via Docker
+
+[Arcane](https://github.com/getarcaneapp/arcane) is a web interface for managing Docker containers.
+
+- Create a directory for Arcane data:
+
+  ```bash
+  mkdir -p ~/arcane
+  cd ~/arcane
+  ```
+
+- Create a `docker-compose.yml` file with the following content:
+
+```yaml
+services:
+  arcane:
+    image: ghcr.io/getarcaneapp/arcane:latest
+    container_name: arcane
+    restart: unless-stopped
+    ports:
+      - 3552:3552
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - arcane-data:/app/data
+    environment:
+      - APP_URL=http://localhost:3552
+      - PUID=1000
+      - PGID=1000
+      - ENCRYPTION_KEY=7bbf32cffc1be11ef5387363cdf3323bcb0660252a329db3b8dcb64cff5d18c3
+      - JWT_SECRET=a71054d5129105d7ee1536b8e7dd7b2612a00526be71824af2947b7fba89f9ba
+      - LOG_LEVEL=info
+      - LOG_JSON=false
+      - OIDC_ENABLED=false
+      - DATABASE_URL=file:data/arcane.db?_pragma=journal_mode(WAL)&_pragma=busy_timeout(2500)&_txlock=immediate
+
+volumes:
+  arcane-data:
+    driver: local
+```
+
+- Start the Arcane container:
+
+  ```bash
+  docker-compose up -d
+  ```
+
+- Access the Arcane web interface via port `3552` at `http://<TV_BOX_IP>:3552` and complete the initial setup.
+  - Default credentials are:
+    - Username: `arcane`
+    - Password: `arcane-admin`
+  - Change the password upon first login.
+  - Create new user profile, and remove default user for security.
+
+## Install ADGuard Home via Docker
+
+- Remove the systemd-resolved in port 53 to avoid conflict with ADGuard Home:
+
+```bash
+sudo mkdir -p /etc/systemd/resolved.conf.d/
+sudo vim /etc/systemd/resolved.conf.d/adguardhome.conf
+```
+
+- Add the following content to the file:
+
+```ini
+[Resolve]
+DNS=127.0.0.1
+DNSStubListener=no
+```
+
+- Restart systemd-resolved:
+
+```bash
+sudo mv /etc/resolv.conf /etc/resolv.conf.backup
+sudo ln -s /run/systemd/resolve/resolv.conf /etc/resolv.conf
+sudo systemctl restart systemd-resolved
+```
+
+- Check the status of port 53:
+
+```bash
+sudo lsof -i :53
+```
+
+If no process is using port 53, proceed to install ADGuard Home.
+
+- Create new project in the Arcane interface for ADGuard Home.
+- Rename the default name `My New Project` to `adguardhome`.
+- Use the following Docker Compose configuration for ADGuard Home:
+
+```yaml
+services:
+  adguardhome:
+    image: adguard/adguardhome:latest
+    container_name: adguardhome
+    ports:
+      - 53:53/tcp # DNS TCP
+      - 53:53/udp # DNS UDP
+      - 8080:80/tcp # Web UI HTTP
+      - 3131:3000/tcp # Port Setup Ban Dau
+    volumes:
+      - ./workdir:/opt/adguardhome/work
+      - ./confdir:/opt/adguardhome/conf
+    restart: unless-stopped
+```
+
+- Remove all content in tab `Environment (.env)`.
+
+- Start the ADGuard Home container via Arcane.
+- Access the Arcane web interface via port `3131` at `http://<TV_BOX_IP>:3131` and complete the initial setup.
+  - Keep all default settings in step 2/5
+  - Create new admin user in step 3/5
+  - Keep all default settings in step 4/5
+  - Finish setup in step 5/5
+- Access the ADGuard Home dashboard via port `8080` at `http://<TV_BOX_IP>:8080`.
+
+- Settings your ADGuard Home: Settings > DNS Settings
+  - Upstream DNS servers
+
+    ```
+    https://dns10.quad9.net/dns-query
+    https://dns.cloudflare.com/dns-query
+    tls://one.one.one.one
+    https://dns.google/dns-query
+    tls://dns.google
+    [/google.com/googleusercontent.com/googlevideo.com/youtube.com/youtu.be/googleapis.com/ytimg.com/gstatic.com/gvt1.com/gvt2.com/]tls://dns.google
+    [/facebook.com/fbcdn.net/fbsbx.com/messenger.com/instagram.com/cdninstagram.com/]tls://dns.google
+    [/tiktok.com/tiktokv.com/tiktokcdn.com/byteoversea.com/ibyteimg.com/]tls://dns.google
+    [/apple.com/icloud.com/mzstatic.com/aaplimg.com/]tls://dns.google
+    [/microsoft.com/windowsupdate.com/azure.com/office.com/live.com/]tls://dns.google
+    [/shopee.vn/shopeemobile.com/lazada.vn/alicdn.com/tiki.vn/]tls://dns.google
+    ```
+
+  - Parallel Requests
+  - Fallback DNS servers:
+
+    ```
+    https://lightnode-sgn-1.edge.nextdns.io
+    https://greencloud-sgn-1.edge.nextdns.io
+    ```
+
+  - Bootstrap DNS servers
+    ```
+    1.1.1.1
+    8.8.8.8
+    ```
+  - Upstream timeout: 3s
+  - Click "Test upsteams" to verify and click Apply.
+  - DNS server configuration
+    - Rate limit: 30
+    - Blocking mode: Null IP
+    - Blocked response TTL: 10 (seconds)
+    - Click Save
+  - DNS cache configuration:
+    - Enable DNS cache
+    - Max cache size: 41943040 (40MB)
+    - Override Min TTL: 60 (1min)
+    - Orveride Max TTL: 300 (5mins)
+    - Optimistic caching: enabled
+    - Click Save
+
+- Setting Filters DNS Blocklists
+  - Go to Filters > DNS Blocklists
+  - Add the following blocklists:
+    - AdGuard DNS filter
+    - VNM: ABPVN List
+    - AdGuard Tracking Protection filter: `https://raw.githubusercontent.com/AdguardTeam/FiltersRegistry/master/filters/filter_3_Spyware/filter.txt`
+    - Social media filter: `https://raw.githubusercontent.com/AdguardTeam/FiltersRegistry/master/filters/filter_4_Social/filter.txt`
+    - base filters: `https://raw.githubusercontent.com/AdguardTeam/FiltersRegistry/master/filters/filter_2_Base/filter.txt`
+    - Malicious URL Blocklist: `https://malware-filter.gitlab.io/malware-filter/urlhaus-filter-agh-online.txt`
+
+- Setting Filter DNS Allowlist
+  - Go to Filters > DNS Allowlist
+  - Add the following allowlists:
+    - name: custom allowlist
+    - URLs: `https://raw.githubusercontent.com/8technologia/adguardhome/refs/heads/main/allowlists.txt`
+
+- The last one is to setting your router to use the TV Box IP as the primary DNS server for all connected devices.
+  - Access your router admin page.
+  - Find the Local Network > LAN > DHCP server settings.
+  - Set the primary DNS server to the TV Box IP address.
+  - Set the secondary DNS server to the TV BOx IP address.
+  - Save the settings and restart your router if necessary.
+
+## Install Uptime Kuma via Docker
+
+- Create new project in the Arcane interface for Uptime Kuma.
+- Rename the default name `My New Project` to `uptimekuma`.
+- Use the following Docker Compose configuration for Uptime Kuma:
+
+```yaml
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:2
+    container_name: uptime-kuma
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+```
+
+- Access the Uptime Kuma web interface via port `3001` at `http://<TV_BOX_IP>:3001` and complete the initial setup.
+  - Create new admin user upon first login.
+  - Set up notification with Telegram Bot.
+    - Create new bot via [BotFather](https://t.me/BotFather) on Telegram.
+    - Get your chat ID via [userinfobot](https://t.me/userinfobot).
+    - In Uptime Kuma, go to Settings > Notification > Add New Notification.
+    - Select Telegram as the type.
+    - Fill in the Bot Token and Chat ID.
+    - Test the notification to ensure it's working.
+
+## Setup Tailscale VPN on ArmbianOS
+
+[Tailscale](https://tailscale.com/) is a VPN service that makes it easy to connect your devices securely over the internet.
+
+- Install Tailscale on ArmbianOS:
+
+  ```bash
+  curl -fsSL https://tailscale.com/install.sh | sh
+  ```
+
+- Start and enable Tailscale service:
+
+  ```bash
+  sudo tailscale up
+  ```
+
+- In your mobile device or computer, install Tailscale app and login with the same account.
+- Your TV Box should appear in the Tailscale network, allowing you to access it securely from anywhere.
